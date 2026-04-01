@@ -1,5 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { query, ensureTables } from "@/lib/db";
+import { generateContentBrief } from "@/lib/content-generator";
+
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   const token = req.headers.get("x-api-token") || req.nextUrl.searchParams.get("token");
@@ -11,16 +14,49 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const digestType = body.digest_type || "daily";
+  const digestContent = body.content || "";
 
-  // Store the research digest and return immediately
+  // Store the research digest
   const digestResult = await query(
     "INSERT INTO research_digests (digest_type, content) VALUES ($1, $2) RETURNING id, created_at",
     [digestType, JSON.stringify(body)]
   );
 
+  const digestId = digestResult.rows[0].id;
+
+  // Mark all pending ideas as researched (they've been included in this digest)
+  await query(
+    "UPDATE ideas SET status = 'researched', researched_at = NOW() WHERE status = 'pending'"
+  );
+
+  // Generate brief AFTER response is sent (runs in background on Vercel)
+  after(async () => {
+    try {
+      const brief = await generateContentBrief(digestContent);
+
+      await query(
+        `INSERT INTO content_briefs (
+          hook_1, hook_2, caption, hashtags, why_this_week,
+          source_digest_id, raw_content
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          `${brief.hook_1.line_1} ${brief.hook_1.line_2}`,
+          `${brief.hook_2.line_1} ${brief.hook_2.line_2}`,
+          brief.caption,
+          brief.hashtags,
+          brief.why_this_week,
+          digestId,
+          JSON.stringify(brief),
+        ]
+      );
+    } catch (err) {
+      console.error("Brief generation failed:", err);
+    }
+  });
+
   return NextResponse.json({
     status: "stored",
-    digest_id: digestResult.rows[0].id,
-    brief_generation: "pending",
+    digest_id: digestId,
+    brief_generation: "auto_triggered",
   });
 }
