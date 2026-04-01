@@ -65,7 +65,17 @@ Today is ${today}.
 Here is today's research digest:
 ${researchDigest || "No research digest available — use your knowledge of UK food business trends."}
 
-PRIORITY RULE: If the research digest contains a "JOHN'S IDEAS — VALIDATED" section with 🟢 Strong ideas, you MUST base today's reel on one of those ideas. John's own ideas always take priority over general research. Only fall back to research insights if no ideas were submitted or all were rated 🔴 Skip.
+PRIORITY RULES (in order):
+1. If the digest contains "JOHN'S IDEAS — VALIDATED" with 🟢 Strong ideas, you MUST base today's reel on one of those. John's ideas always take priority.
+2. If the digest contains "YOUR RECENT REELS" data, study which hooks got the most views/likes. Weight today's hooks towards the FORMATS and STYLES that performed best. If contradiction hooks outperformed statement hooks, use contradiction. If money topics beat systems topics, lean money.
+3. If the digest contains "CREATOR INTELLIGENCE", use winning patterns from competitors to sharpen the brief.
+4. Only fall back to general research if no ideas were submitted and no performance data exists.
+
+PERFORMANCE FEEDBACK LOOP:
+The research digest may include John's recent reel performance data (views, likes, hooks). Use this to:
+- Mirror the hook structure of top performers (if "Why X... but Y" got 50K views, do more of that)
+- Avoid the format/angle of underperformers
+- Reference specific numbers in your reasoning (e.g. "Based on your 45K view reel about margins...")
 
 Based on the strongest insight from the research digest (or John's top-rated idea), generate TODAY'S REEL BRIEF.
 
