@@ -16,19 +16,26 @@ export async function POST(req: NextRequest) {
       [text.trim()]
     );
 
-    // Forward to research bot async (fire and forget)
+    // Forward to research bot (must await — Vercel kills process after response)
     const RESEARCH_BOT_URL = process.env.RESEARCH_BOT_URL;
+    let forwarded = false;
     if (RESEARCH_BOT_URL) {
-      fetch(`${RESEARCH_BOT_URL}/ideas`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: text.trim() }),
-      }).catch(() => {});
+      try {
+        const fwd = await fetch(`${RESEARCH_BOT_URL}/ideas`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: text.trim() }),
+        });
+        forwarded = fwd.ok;
+      } catch {
+        // Research bot unreachable — idea is still saved locally
+      }
     }
 
     return NextResponse.json({
       status: "stored",
       idea: result.rows[0],
+      forwarded,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
