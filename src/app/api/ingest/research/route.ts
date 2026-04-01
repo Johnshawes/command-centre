@@ -16,13 +16,22 @@ export async function POST(req: NextRequest) {
   const digestType = body.digest_type || "daily";
   const digestContent = body.content || "";
 
-  // Store the research digest
+  // Store the digest (works for daily, weekly, and reel_review)
   const digestResult = await query(
     "INSERT INTO research_digests (digest_type, content) VALUES ($1, $2) RETURNING id, created_at",
     [digestType, JSON.stringify(body)]
   );
 
   const digestId = digestResult.rows[0].id;
+
+  // Reel reviews just get stored — no brief generation needed
+  if (digestType === "reel_review") {
+    return NextResponse.json({
+      status: "stored",
+      digest_id: digestId,
+      type: "reel_review",
+    });
+  }
 
   // Mark all pending ideas as researched (they've been included in this digest)
   await query(
