@@ -44,7 +44,17 @@ export default function PublishPage() {
     try {
       const res = await fetch("/api/briefs");
       const data = await res.json();
-      if (data.briefs) setBriefs(data.briefs);
+      if (data.briefs) {
+        // Parse raw_content if it's a string (Postgres JSONB can return as string)
+        const parsed = data.briefs.map((b: Brief) => ({
+          ...b,
+          raw_content:
+            typeof b.raw_content === "string"
+              ? JSON.parse(b.raw_content)
+              : b.raw_content,
+        }));
+        setBriefs(parsed);
+      }
     } catch {
       // silent
     } finally {

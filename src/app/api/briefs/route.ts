@@ -7,6 +7,11 @@ export async function GET(req: NextRequest) {
   const filter = req.nextUrl.searchParams.get("status");
 
   try {
+    // Auto-delete rejected briefs older than 7 days
+    await query(
+      "DELETE FROM content_briefs WHERE status = 'rejected' AND reviewed_at < NOW() - INTERVAL '7 days'"
+    );
+
     let result;
     if (filter) {
       result = await query(
