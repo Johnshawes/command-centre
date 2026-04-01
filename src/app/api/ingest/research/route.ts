@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query, ensureTables } from "@/lib/db";
+import { generateContentBrief } from "@/lib/content-generator";
 
 export async function POST(req: NextRequest) {
   const token = req.headers.get("x-api-token") || req.nextUrl.searchParams.get("token");
@@ -11,15 +12,52 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const digestType = body.digest_type || "daily";
+  const digestContent = body.content || "";
 
-  const result = await query(
+  // Store the research digest
+  const digestResult = await query(
     "INSERT INTO research_digests (digest_type, content) VALUES ($1, $2) RETURNING id, created_at",
     [digestType, JSON.stringify(body)]
   );
 
-  return NextResponse.json({
-    status: "stored",
-    id: result.rows[0].id,
-    created_at: result.rows[0].created_at,
-  });
+  const digestId = digestResult.rows[0].id;
+
+  // Generate content brief from the digest (replaces content bot)
+  try {
+    const brief = await generateContentBrief(digestContent);
+
+    await query(
+      `INSERT INTO content_briefs (
+        hook_1, hook_2, curiosity_line, end_line_1, end_line_2,
+        caption, hashtags, why_this_week, source_digest_id, raw_content
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [
+        brief.hook_1,
+        brief.hook_2,
+        brief.curiosity_line,
+        brief.end_line_1,
+        brief.end_line_2,
+        brief.caption,
+        brief.hashtags,
+        brief.why_this_week,
+        digestId,
+        JSON.stringify(brief),
+      ]
+    );
+
+    return NextResponse.json({
+      status: "stored_and_generated",
+      digest_id: digestId,
+      brief_generated: true,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    // Digest is stored even if brief generation fails
+    return NextResponse.json({
+      status: "stored",
+      digest_id: digestId,
+      brief_generated: false,
+      brief_error: message,
+    });
+  }
 }
