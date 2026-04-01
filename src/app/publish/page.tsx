@@ -2,18 +2,31 @@
 
 import { useState, useEffect, useCallback } from "react";
 
+interface HookVariation {
+  line_1: string;
+  line_2: string;
+  curiosity_line: string;
+  end_line_1: string;
+  end_line_2: string;
+}
+
+interface RawBrief {
+  hook_1: HookVariation;
+  hook_2: HookVariation;
+  hook_3: HookVariation;
+  caption: string;
+  hashtags: string;
+  why_this_week: string;
+  angle?: string;
+}
+
 interface Brief {
   id: number;
   status: string;
-  hook_1: string | null;
-  hook_2: string | null;
-  curiosity_line: string | null;
-  end_line_1: string | null;
-  end_line_2: string | null;
   caption: string | null;
   hashtags: string | null;
   why_this_week: string | null;
-  raw_content: Record<string, unknown> | null;
+  raw_content: RawBrief | null;
   created_at: string;
   reviewed_at: string | null;
 }
@@ -62,17 +75,6 @@ export default function PublishPage() {
     }
   }
 
-  function formatDate(iso: string) {
-    const d = new Date(iso);
-    return d.toLocaleString("en-GB", {
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
-
   const filtered = briefs.filter((b) => b.status === activeTab);
 
   const tabs: { key: Tab; label: string }[] = [
@@ -116,7 +118,7 @@ export default function PublishPage() {
           </p>
           <p>
             {activeTab === "pending"
-              ? "No briefs waiting for review. Content bot posts here daily at 7:05am."
+              ? "No briefs waiting for review. Research bot triggers daily at 7am."
               : activeTab === "approved"
                 ? "No approved briefs yet."
                 : "No rejected briefs."}
@@ -140,6 +142,44 @@ export default function PublishPage() {
   );
 }
 
+function CopyButton({ text, label }: { text: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopy() {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="text-xs text-muted hover:text-primary transition-colors"
+    >
+      {copied ? "Copied!" : label}
+    </button>
+  );
+}
+
+function HookCard({ hook, label }: { hook: HookVariation; label: string }) {
+  return (
+    <div className="bg-background rounded-lg p-4 space-y-3">
+      <p className="text-xs font-semibold text-muted uppercase tracking-wide">{label}</p>
+      <div className="space-y-1">
+        <p className="font-bold text-lg leading-tight">{hook.line_1}</p>
+        <p className="font-bold text-lg leading-tight">{hook.line_2}</p>
+      </div>
+      <div className="border-l-2 border-warning pl-3 space-y-1">
+        <p className="text-sm text-muted italic">{hook.curiosity_line}</p>
+      </div>
+      <div className="space-y-1">
+        <p className="text-sm font-medium">{hook.end_line_1}</p>
+        <p className="text-sm font-semibold text-primary">{hook.end_line_2}</p>
+      </div>
+    </div>
+  );
+}
+
 function BriefCard({
   brief,
   updating,
@@ -154,6 +194,7 @@ function BriefCard({
   onRestore: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const raw = brief.raw_content;
 
   function formatDate(iso: string) {
     const d = new Date(iso);
@@ -170,7 +211,14 @@ function BriefCard({
     <div className="bg-surface rounded-xl border border-border overflow-hidden">
       {/* Header */}
       <div className="px-6 py-4 border-b border-border flex items-center justify-between">
-        <span className="text-xs text-muted">{formatDate(brief.created_at)}</span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted">{formatDate(brief.created_at)}</span>
+          {raw?.angle && (
+            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+              {raw.angle}
+            </span>
+          )}
+        </div>
         <div className="flex gap-2">
           {brief.status === "pending" && (
             <>
@@ -202,81 +250,60 @@ function BriefCard({
         </div>
       </div>
 
-      {/* Hook variations */}
-      <div className="px-6 py-5 space-y-4">
-        {(brief.hook_1 || brief.hook_2) && (
+      <div className="px-6 py-5 space-y-6">
+        {/* 3 Hook variations */}
+        {raw && (
           <div>
-            <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">Hooks</p>
-            <div className="flex gap-3">
-              {brief.hook_1 && (
-                <div className="flex-1 bg-background px-4 py-3 rounded-lg">
-                  <p className="text-xs text-muted mb-1">A</p>
-                  <p className="font-semibold">{brief.hook_1}</p>
-                </div>
-              )}
-              {brief.hook_2 && (
-                <div className="flex-1 bg-background px-4 py-3 rounded-lg">
-                  <p className="text-xs text-muted mb-1">B</p>
-                  <p className="font-semibold">{brief.hook_2}</p>
-                </div>
-              )}
+            <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-3">Hook Variations</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {raw.hook_1 && <HookCard hook={raw.hook_1} label="Hook A" />}
+              {raw.hook_2 && <HookCard hook={raw.hook_2} label="Hook B" />}
+              {raw.hook_3 && <HookCard hook={raw.hook_3} label="Hook C" />}
             </div>
           </div>
         )}
 
-        {brief.curiosity_line && (
-          <div>
-            <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-1">Curiosity Line</p>
-            <p className="text-sm">{brief.curiosity_line}</p>
-          </div>
-        )}
-
-        {(brief.end_line_1 || brief.end_line_2) && (
-          <div>
-            <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-2">End Lines</p>
-            <div className="flex gap-3">
-              {brief.end_line_1 && (
-                <div className="flex-1 bg-background px-4 py-3 rounded-lg">
-                  <p className="text-xs text-muted mb-1">1</p>
-                  <p className="text-sm">{brief.end_line_1}</p>
-                </div>
-              )}
-              {brief.end_line_2 && (
-                <div className="flex-1 bg-background px-4 py-3 rounded-lg">
-                  <p className="text-xs text-muted mb-1">2</p>
-                  <p className="text-sm">{brief.end_line_2}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
+        {/* Caption */}
         {brief.caption && (
           <div>
-            <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-1">Caption</p>
-            <p className="text-sm whitespace-pre-wrap">{brief.caption}</p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-muted uppercase tracking-wide">Caption</p>
+              <CopyButton text={brief.caption} label="Copy caption" />
+            </div>
+            <div className="bg-background rounded-lg p-4">
+              <p className="text-sm whitespace-pre-wrap leading-relaxed">{brief.caption}</p>
+            </div>
           </div>
         )}
 
+        {/* Hashtags */}
         {brief.hashtags && (
           <div>
-            <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-1">Hashtags</p>
-            <p className="text-sm text-primary">{brief.hashtags}</p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-muted uppercase tracking-wide">Hashtags</p>
+              <CopyButton text={brief.hashtags} label="Copy hashtags" />
+            </div>
+            <div className="bg-background rounded-lg p-3">
+              <p className="text-sm text-primary">{brief.hashtags}</p>
+            </div>
           </div>
         )}
 
-        {brief.why_this_week && (
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="text-xs text-muted hover:text-foreground transition-colors"
-          >
-            {expanded ? "Hide reasoning ▴" : "Why this week? ▾"}
-          </button>
-        )}
-        {expanded && brief.why_this_week && (
-          <div className="bg-background px-4 py-3 rounded-lg">
-            <p className="text-sm text-muted">{brief.why_this_week}</p>
-          </div>
+        {/* Why this week */}
+        {(raw?.why_this_week || brief.why_this_week) && (
+          <>
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="text-xs text-muted hover:text-foreground transition-colors"
+            >
+              {expanded ? "Hide reasoning ▴" : "Why this week? ▾"}
+            </button>
+            {expanded && (
+              <div className="bg-background px-4 py-3 rounded-lg">
+                <p className="text-sm text-muted">{raw?.why_this_week || brief.why_this_week}</p>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

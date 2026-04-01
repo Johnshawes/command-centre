@@ -28,15 +28,12 @@ export async function POST(req: NextRequest) {
 
     await query(
       `INSERT INTO content_briefs (
-        hook_1, hook_2, curiosity_line, end_line_1, end_line_2,
-        caption, hashtags, why_this_week, source_digest_id, raw_content
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        hook_1, hook_2, caption, hashtags, why_this_week,
+        source_digest_id, raw_content
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [
-        brief.hook_1,
-        brief.hook_2,
-        brief.curiosity_line,
-        brief.end_line_1,
-        brief.end_line_2,
+        `${brief.hook_1.line_1} ${brief.hook_1.line_2}`,
+        `${brief.hook_2.line_1} ${brief.hook_2.line_2}`,
         brief.caption,
         brief.hashtags,
         brief.why_this_week,
@@ -52,7 +49,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    // Digest is stored even if brief generation fails
     return NextResponse.json({
       status: "stored",
       digest_id: digestId,
