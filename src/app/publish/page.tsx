@@ -36,6 +36,7 @@ type Tab = "pending" | "approved" | "rejected";
 export default function PublishPage() {
   const [briefs, setBriefs] = useState<Brief[]>([]);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("pending");
   const [updating, setUpdating] = useState<number | null>(null);
 
@@ -51,6 +52,23 @@ export default function PublishPage() {
     }
   }, []);
 
+  async function triggerGenerate() {
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/generate", { method: "POST" });
+      const data = await res.json();
+      if (data.status === "generated") {
+        fetchBriefs();
+      }
+      return data;
+    } catch {
+      // silent
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  // Check for pending digests on load and poll
   useEffect(() => {
     fetchBriefs();
     const interval = setInterval(fetchBriefs, 60000);
@@ -85,10 +103,21 @@ export default function PublishPage() {
 
   return (
     <div className="max-w-4xl">
-      <h2 className="text-2xl font-bold mb-1">Publisher</h2>
-      <p className="text-muted text-sm mb-8">
-        Your daily content briefs — review, approve, and publish.
-      </p>
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h2 className="text-2xl font-bold mb-1">Publisher</h2>
+          <p className="text-muted text-sm">
+            Your daily content briefs — review, approve, and publish.
+          </p>
+        </div>
+        <button
+          onClick={triggerGenerate}
+          disabled={generating}
+          className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-hover disabled:opacity-50 transition-colors"
+        >
+          {generating ? "Generating..." : "Generate Brief"}
+        </button>
+      </div>
 
       {/* Tabs */}
       <div className="flex gap-1 mb-8 bg-surface rounded-lg p-1 border border-border w-fit">
