@@ -22,7 +22,7 @@ export default function IdeasPage() {
       const data = await res.json();
       if (data.ideas) setIdeas(data.ideas);
     } catch {
-      // silent fail on poll
+      // silent
     }
   }, []);
 
@@ -46,7 +46,7 @@ export default function IdeasPage() {
       const data = await res.json();
 
       if (data.status === "stored") {
-        setFlash("Idea captured — queued for next research digest");
+        setFlash("Idea captured — queued for next digest");
         setInput("");
         fetchIdeas();
         setTimeout(() => setFlash(""), 4000);
@@ -91,34 +91,32 @@ export default function IdeasPage() {
   const processed = ideas.filter((i) => i.status !== "pending");
 
   return (
-    <div className="max-w-3xl">
-      <h2 className="text-2xl font-bold mb-1">Idea Capture</h2>
-      <p className="text-muted text-sm mb-8">
+    <div className="max-w-2xl mx-auto pt-4">
+      <h2 className="text-xl font-bold mb-1">Idea Capture</h2>
+      <p className="text-muted text-sm mb-6">
         Drop an idea — it gets researched and turned into a content brief.
       </p>
 
-      <form onSubmit={submitIdea} className="mb-8">
-        <div className="flex gap-3">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="e.g. Reel about why 70% GP isn't enough if your labour is 40%"
-            className="flex-1 px-4 py-3 rounded-lg border border-border bg-surface text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-          />
-          <button
-            type="submit"
-            disabled={sending || !input.trim()}
-            className="px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {sending ? "Sending..." : "Capture"}
-          </button>
-        </div>
+      <form onSubmit={submitIdea} className="mb-6">
+        <textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="e.g. Reel about why 70% GP isn't enough if your labour is 40%"
+          rows={3}
+          className="w-full px-4 py-3 rounded-xl border border-border bg-surface text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none text-base"
+        />
+        <button
+          type="submit"
+          disabled={sending || !input.trim()}
+          className="w-full mt-3 py-3.5 bg-primary text-white rounded-xl font-medium disabled:opacity-50 transition-colors active:scale-95 text-base"
+        >
+          {sending ? "Sending..." : "Capture Idea"}
+        </button>
       </form>
 
       {flash && (
         <div
-          className={`mb-6 px-4 py-3 rounded-lg text-sm font-medium ${
+          className={`mb-6 px-4 py-3 rounded-xl text-sm font-medium ${
             flash.includes("captured")
               ? "bg-success/10 text-success"
               : "bg-danger/10 text-danger"
@@ -128,28 +126,28 @@ export default function IdeasPage() {
         </div>
       )}
 
-      {/* Pending ideas */}
-      <div className="mb-10">
-        <h3 className="text-sm font-semibold text-muted uppercase tracking-wide mb-4">
+      {/* Queued */}
+      <div className="mb-8">
+        <h3 className="text-sm font-semibold text-muted uppercase tracking-wide mb-3">
           Queued ({pending.length})
         </h3>
 
         {pending.length === 0 ? (
-          <div className="text-center py-12 text-muted">
-            <p className="text-4xl mb-3">💡</p>
-            <p>No ideas queued. Drop one above.</p>
+          <div className="text-center py-10 text-muted">
+            <p className="text-3xl mb-2">💡</p>
+            <p className="text-sm">No ideas queued. Drop one above.</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {pending.map((idea) => (
               <div
                 key={idea.id}
-                className="flex items-start justify-between gap-4 px-4 py-3 bg-surface rounded-lg border border-border"
+                className="px-4 py-3 bg-surface rounded-xl border border-border"
               >
-                <p className="text-sm">{idea.text}</p>
-                <div className="flex items-center gap-3 shrink-0">
+                <p className="text-sm mb-2">{idea.text}</p>
+                <div className="flex items-center justify-between">
                   {statusBadge(idea.status)}
-                  <span className="text-xs text-muted whitespace-nowrap">
+                  <span className="text-xs text-muted">
                     {formatTime(idea.created_at)}
                   </span>
                 </div>
@@ -159,22 +157,22 @@ export default function IdeasPage() {
         )}
       </div>
 
-      {/* Processed ideas */}
+      {/* Processed */}
       {processed.length > 0 && (
         <div>
-          <h3 className="text-sm font-semibold text-muted uppercase tracking-wide mb-4">
+          <h3 className="text-sm font-semibold text-muted uppercase tracking-wide mb-3">
             Processed ({processed.length})
           </h3>
-          <div className="space-y-3">
+          <div className="space-y-2">
             {processed.map((idea) => (
               <div
                 key={idea.id}
-                className="flex items-start justify-between gap-4 px-4 py-3 bg-surface rounded-lg border border-border opacity-75"
+                className="px-4 py-3 bg-surface rounded-xl border border-border opacity-60"
               >
-                <p className="text-sm">{idea.text}</p>
-                <div className="flex items-center gap-3 shrink-0">
+                <p className="text-sm mb-2">{idea.text}</p>
+                <div className="flex items-center justify-between">
                   {statusBadge(idea.status)}
-                  <span className="text-xs text-muted whitespace-nowrap">
+                  <span className="text-xs text-muted">
                     {formatTime(idea.created_at)}
                   </span>
                 </div>
