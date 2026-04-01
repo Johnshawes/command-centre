@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sql, ensureTables } from "@/lib/db";
+import { query, ensureTables } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
   await ensureTables();
@@ -9,18 +9,14 @@ export async function GET(req: NextRequest) {
   try {
     let result;
     if (filter) {
-      result = await sql`
-        SELECT * FROM content_briefs
-        WHERE status = ${filter}
-        ORDER BY created_at DESC
-        LIMIT 30
-      `;
+      result = await query(
+        "SELECT * FROM content_briefs WHERE status = $1 ORDER BY created_at DESC LIMIT 30",
+        [filter]
+      );
     } else {
-      result = await sql`
-        SELECT * FROM content_briefs
-        ORDER BY created_at DESC
-        LIMIT 30
-      `;
+      result = await query(
+        "SELECT * FROM content_briefs ORDER BY created_at DESC LIMIT 30"
+      );
     }
 
     return NextResponse.json({ briefs: result.rows });
@@ -40,12 +36,10 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Invalid id or status" }, { status: 400 });
     }
 
-    const result = await sql`
-      UPDATE content_briefs
-      SET status = ${status}, reviewed_at = NOW()
-      WHERE id = ${id}
-      RETURNING *
-    `;
+    const result = await query(
+      "UPDATE content_briefs SET status = $1, reviewed_at = NOW() WHERE id = $2 RETURNING *",
+      [status, id]
+    );
 
     if (result.rows.length === 0) {
       return NextResponse.json({ error: "Brief not found" }, { status: 404 });

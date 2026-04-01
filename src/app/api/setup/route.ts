@@ -7,6 +7,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  await ensureTables();
-  return NextResponse.json({ status: "tables_created" });
+  try {
+    await ensureTables();
+    return NextResponse.json({ status: "tables_created" });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

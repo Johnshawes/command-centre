@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sql, ensureTables } from "@/lib/db";
+import { query, ensureTables } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
   await ensureTables();
@@ -11,11 +11,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No idea provided" }, { status: 400 });
     }
 
-    // Store locally first — Command Centre is source of truth
-    const result = await sql`
-      INSERT INTO ideas (text) VALUES (${text.trim()})
-      RETURNING id, text, status, created_at
-    `;
+    const result = await query(
+      "INSERT INTO ideas (text) VALUES ($1) RETURNING id, text, status, created_at",
+      [text.trim()]
+    );
 
     // Forward to research bot async (fire and forget)
     const RESEARCH_BOT_URL = process.env.RESEARCH_BOT_URL;
@@ -41,12 +40,9 @@ export async function GET() {
   await ensureTables();
 
   try {
-    const result = await sql`
-      SELECT id, text, status, created_at, researched_at
-      FROM ideas
-      ORDER BY created_at DESC
-      LIMIT 50
-    `;
+    const result = await query(
+      "SELECT id, text, status, created_at, researched_at FROM ideas ORDER BY created_at DESC LIMIT 50"
+    );
 
     return NextResponse.json({ ideas: result.rows });
   } catch (err) {

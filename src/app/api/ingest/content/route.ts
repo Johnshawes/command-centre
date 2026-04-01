@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sql, ensureTables } from "@/lib/db";
+import { query, ensureTables } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
   const token = req.headers.get("x-api-token") || req.nextUrl.searchParams.get("token");
@@ -11,23 +11,24 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
 
-  const result = await sql`
-    INSERT INTO content_briefs (
+  const result = await query(
+    `INSERT INTO content_briefs (
       hook_1, hook_2, curiosity_line, end_line_1, end_line_2,
       caption, hashtags, why_this_week, raw_content
-    ) VALUES (
-      ${body.hook_1 || null},
-      ${body.hook_2 || null},
-      ${body.curiosity_line || null},
-      ${body.end_line_1 || null},
-      ${body.end_line_2 || null},
-      ${body.caption || null},
-      ${body.hashtags || null},
-      ${body.why_this_week || null},
-      ${JSON.stringify(body)}
-    )
-    RETURNING id, created_at
-  `;
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    RETURNING id, created_at`,
+    [
+      body.hook_1 || null,
+      body.hook_2 || null,
+      body.curiosity_line || null,
+      body.end_line_1 || null,
+      body.end_line_2 || null,
+      body.caption || null,
+      body.hashtags || null,
+      body.why_this_week || null,
+      JSON.stringify(body),
+    ]
+  );
 
   return NextResponse.json({
     status: "stored",

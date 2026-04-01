@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sql, ensureTables } from "@/lib/db";
+import { query, ensureTables } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
   const token = req.headers.get("x-api-token") || req.nextUrl.searchParams.get("token");
@@ -12,11 +12,10 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const digestType = body.digest_type || "daily";
 
-  const result = await sql`
-    INSERT INTO research_digests (digest_type, content)
-    VALUES (${digestType}, ${JSON.stringify(body)})
-    RETURNING id, created_at
-  `;
+  const result = await query(
+    "INSERT INTO research_digests (digest_type, content) VALUES ($1, $2) RETURNING id, created_at",
+    [digestType, JSON.stringify(body)]
+  );
 
   return NextResponse.json({
     status: "stored",

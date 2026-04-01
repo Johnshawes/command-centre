@@ -1,7 +1,17 @@
-import { sql } from "@vercel/postgres";
+import { Pool } from "pg";
+
+const pool = new Pool({
+  connectionString: process.env.POSTGRES_URL,
+  ssl: { rejectUnauthorized: false },
+});
+
+export async function query(text: string, params?: unknown[]) {
+  const res = await pool.query(text, params);
+  return res;
+}
 
 export async function ensureTables() {
-  await sql`
+  await query(`
     CREATE TABLE IF NOT EXISTS ideas (
       id SERIAL PRIMARY KEY,
       text TEXT NOT NULL,
@@ -10,18 +20,18 @@ export async function ensureTables() {
       researched_at TIMESTAMPTZ,
       research_data JSONB
     )
-  `;
+  `);
 
-  await sql`
+  await query(`
     CREATE TABLE IF NOT EXISTS research_digests (
       id SERIAL PRIMARY KEY,
       digest_type TEXT NOT NULL DEFAULT 'daily',
       content JSONB NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
-  `;
+  `);
 
-  await sql`
+  await query(`
     CREATE TABLE IF NOT EXISTS content_briefs (
       id SERIAL PRIMARY KEY,
       status TEXT NOT NULL DEFAULT 'pending',
@@ -39,7 +49,5 @@ export async function ensureTables() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       reviewed_at TIMESTAMPTZ
     )
-  `;
+  `);
 }
-
-export { sql };
