@@ -3,8 +3,11 @@
 import { useState, useEffect, useCallback } from "react";
 
 interface Idea {
+  id: number;
   text: string;
-  received_at: string;
+  status: string;
+  created_at: string;
+  researched_at: string | null;
 }
 
 export default function IdeasPage() {
@@ -43,16 +46,16 @@ export default function IdeasPage() {
       const data = await res.json();
 
       if (data.status === "stored") {
-        setFlash("Idea captured — queued for tomorrow's 7am research digest");
+        setFlash("Idea captured — queued for next research digest");
         setInput("");
         fetchIdeas();
         setTimeout(() => setFlash(""), 4000);
       } else {
-        setFlash("Failed to send idea");
+        setFlash(data.error || "Failed to send idea");
         setTimeout(() => setFlash(""), 4000);
       }
     } catch {
-      setFlash("Error connecting to research bot");
+      setFlash("Error saving idea");
       setTimeout(() => setFlash(""), 4000);
     } finally {
       setSending(false);
@@ -69,15 +72,31 @@ export default function IdeasPage() {
     });
   }
 
+  const statusBadge = (status: string) => {
+    const styles: Record<string, string> = {
+      pending: "bg-warning/15 text-warning",
+      researched: "bg-success/15 text-success",
+      published: "bg-primary/15 text-primary",
+    };
+    return (
+      <span
+        className={`text-xs font-medium px-2 py-0.5 rounded-full ${styles[status] || "bg-muted/15 text-muted"}`}
+      >
+        {status}
+      </span>
+    );
+  };
+
+  const pending = ideas.filter((i) => i.status === "pending");
+  const processed = ideas.filter((i) => i.status !== "pending");
+
   return (
     <div className="max-w-3xl">
       <h2 className="text-2xl font-bold mb-1">Idea Capture</h2>
       <p className="text-muted text-sm mb-8">
-        Drop an idea — it gets researched and validated at 7am, then turned into
-        a reel brief at 7:05am.
+        Drop an idea — it gets researched and turned into a content brief.
       </p>
 
-      {/* Input */}
       <form onSubmit={submitIdea} className="mb-8">
         <div className="flex gap-3">
           <input
@@ -97,7 +116,6 @@ export default function IdeasPage() {
         </div>
       </form>
 
-      {/* Flash message */}
       {flash && (
         <div
           className={`mb-6 px-4 py-3 rounded-lg text-sm font-medium ${
@@ -111,32 +129,60 @@ export default function IdeasPage() {
       )}
 
       {/* Pending ideas */}
-      <div>
+      <div className="mb-10">
         <h3 className="text-sm font-semibold text-muted uppercase tracking-wide mb-4">
-          Queued for next digest ({ideas.length})
+          Queued ({pending.length})
         </h3>
 
-        {ideas.length === 0 ? (
+        {pending.length === 0 ? (
           <div className="text-center py-12 text-muted">
             <p className="text-4xl mb-3">💡</p>
             <p>No ideas queued. Drop one above.</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {ideas.map((idea, i) => (
+            {pending.map((idea) => (
               <div
-                key={i}
+                key={idea.id}
                 className="flex items-start justify-between gap-4 px-4 py-3 bg-surface rounded-lg border border-border"
               >
                 <p className="text-sm">{idea.text}</p>
-                <span className="text-xs text-muted whitespace-nowrap">
-                  {formatTime(idea.received_at)}
-                </span>
+                <div className="flex items-center gap-3 shrink-0">
+                  {statusBadge(idea.status)}
+                  <span className="text-xs text-muted whitespace-nowrap">
+                    {formatTime(idea.created_at)}
+                  </span>
+                </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Processed ideas */}
+      {processed.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-muted uppercase tracking-wide mb-4">
+            Processed ({processed.length})
+          </h3>
+          <div className="space-y-3">
+            {processed.map((idea) => (
+              <div
+                key={idea.id}
+                className="flex items-start justify-between gap-4 px-4 py-3 bg-surface rounded-lg border border-border opacity-75"
+              >
+                <p className="text-sm">{idea.text}</p>
+                <div className="flex items-center gap-3 shrink-0">
+                  {statusBadge(idea.status)}
+                  <span className="text-xs text-muted whitespace-nowrap">
+                    {formatTime(idea.created_at)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

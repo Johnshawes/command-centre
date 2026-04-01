@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { sql, ensureTables } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
-  const RESEARCH_BOT_URL = process.env.RESEARCH_BOT_URL;
-
-  if (!RESEARCH_BOT_URL) {
-    return NextResponse.json(
-      { error: "RESEARCH_BOT_URL not configured" },
-      { status: 500 },
-    );
-  }
+  await ensureTables();
 
   try {
     const { text } = await req.json();
@@ -17,14 +11,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No idea provided" }, { status: 400 });
     }
 
-    const res = await fetch(`${RESEARCH_BOT_URL}/ideas`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: text.trim() }),
-    });
+    // Store locally first — Command Centre is source of truth
+    const result = await sql`
+      INSERT INTO ideas (text) VALUES (${text.trim()})
+      RETURNING id, text, status, created_at
+    `;
 
-    const data = await res.json();
-    return NextResponse.json(data);
+    // Forward to research bot async (fire and forget)
+    const RESEARCH_BOT_URL = process.env.RESEARCH_BOT_URL;
+    if (RESEARCH_BOT_URL) {
+      fetch(`${RESEARCH_BOT_URL}/ideas`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: text.trim() }),
+      }).catch(() => {});
+    }
+
+    return NextResponse.json({
+      status: "stored",
+      idea: result.rows[0],
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
@@ -32,23 +38,17 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
-  const RESEARCH_BOT_URL = process.env.RESEARCH_BOT_URL;
-  const RESEARCH_BOT_TOKEN = process.env.RESEARCH_BOT_TOKEN || "";
-
-  if (!RESEARCH_BOT_URL) {
-    return NextResponse.json(
-      { error: "RESEARCH_BOT_URL not configured", ideas: [] },
-      { status: 500 },
-    );
-  }
+  await ensureTables();
 
   try {
-    const res = await fetch(
-      `${RESEARCH_BOT_URL}/ideas?token=${encodeURIComponent(RESEARCH_BOT_TOKEN)}`,
-    );
+    const result = await sql`
+      SELECT id, text, status, created_at, researched_at
+      FROM ideas
+      ORDER BY created_at DESC
+      LIMIT 50
+    `;
 
-    const data = await res.json();
-    return NextResponse.json(data);
+    return NextResponse.json({ ideas: result.rows });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: message, ideas: [] }, { status: 500 });
