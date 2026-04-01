@@ -31,6 +31,12 @@ interface Brief {
   reviewed_at: string | null;
 }
 
+interface PipelineStatus {
+  last_digest: { created_at: string } | null;
+  last_brief: { created_at: string; status: string } | null;
+  pending_ideas: number;
+}
+
 type Tab = "pending" | "approved" | "rejected";
 
 export default function PublishPage() {
@@ -39,6 +45,7 @@ export default function PublishPage() {
   const [generating, setGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("pending");
   const [updating, setUpdating] = useState<number | null>(null);
+  const [status, setStatus] = useState<PipelineStatus | null>(null);
 
   const fetchBriefs = useCallback(async () => {
     try {
@@ -77,11 +84,22 @@ export default function PublishPage() {
     }
   }
 
+  const fetchStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/status");
+      const data = await res.json();
+      setStatus(data);
+    } catch {
+      // silent
+    }
+  }, []);
+
   useEffect(() => {
     fetchBriefs();
-    const interval = setInterval(fetchBriefs, 60000);
+    fetchStatus();
+    const interval = setInterval(() => { fetchBriefs(); fetchStatus(); }, 60000);
     return () => clearInterval(interval);
-  }, [fetchBriefs]);
+  }, [fetchBriefs, fetchStatus]);
 
   async function updateStatus(id: number, status: string) {
     setUpdating(id);
@@ -121,6 +139,9 @@ export default function PublishPage() {
           {generating ? "Generating..." : "Generate Brief"}
         </button>
       </div>
+
+      {/* Pipeline status */}
+      {status && <StatusBar status={status} />}
 
       {/* Tabs */}
       <div className="flex gap-1 mb-6 bg-surface rounded-lg p-1 border border-border">
@@ -365,6 +386,62 @@ function BriefCard({
             Move to Pending
           </button>
         )}
+      </div>
+    </div>
+  );
+}
+
+function StatusBar({ status }: { status: PipelineStatus }) {
+  function timeAgo(iso: string): string {
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    return `${days}d ago`;
+  }
+
+  const digestAge = status.last_digest
+    ? (Date.now() - new Date(status.last_digest.created_at).getTime()) / 3600000
+    : 999;
+
+  // Green if digest in last 14 hours (covers 7am daily), amber if 14-26h, red if older
+  const health = digestAge < 14 ? "healthy" : digestAge < 26 ? "stale" : "missing";
+
+  const dot = {
+    healthy: "bg-success",
+    stale: "bg-warning",
+    missing: "bg-danger",
+  }[health];
+
+  const message = {
+    healthy: "Pipeline running",
+    stale: "Digest due soon",
+    missing: "No recent digest",
+  }[health];
+
+  return (
+    <div className="mb-6 px-4 py-3 bg-surface rounded-xl border border-border">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className={`w-2 h-2 rounded-full ${dot}`} />
+          <span className="text-xs font-medium">{message}</span>
+        </div>
+        {status.pending_ideas > 0 && (
+          <span className="text-xs text-muted">
+            {status.pending_ideas} idea{status.pending_ideas > 1 ? "s" : ""} queued
+          </span>
+        )}
+      </div>
+      <div className="flex gap-4 mt-2 text-xs text-muted">
+        <span>
+          Last digest: {status.last_digest ? timeAgo(status.last_digest.created_at) : "never"}
+        </span>
+        <span>
+          Last brief: {status.last_brief ? timeAgo(status.last_brief.created_at) : "never"}
+        </span>
       </div>
     </div>
   );
