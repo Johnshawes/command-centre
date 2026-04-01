@@ -1,17 +1,17 @@
-import { Pool } from "pg";
+import postgres from "postgres";
 
-const pool = new Pool({
-  connectionString: process.env.POSTGRES_URL,
-  ssl: { rejectUnauthorized: false },
+const sql = postgres(process.env.POSTGRES_URL!, {
+  ssl: "require",
+  prepare: false,
 });
 
-export async function query(text: string, params?: unknown[]) {
-  const res = await pool.query(text, params);
-  return res;
+export async function query(text: string, params: (string | number | boolean | null)[] = []) {
+  const result = await sql.unsafe(text, params);
+  return { rows: result };
 }
 
 export async function ensureTables() {
-  await query(`
+  await sql`
     CREATE TABLE IF NOT EXISTS ideas (
       id SERIAL PRIMARY KEY,
       text TEXT NOT NULL,
@@ -20,18 +20,18 @@ export async function ensureTables() {
       researched_at TIMESTAMPTZ,
       research_data JSONB
     )
-  `);
+  `;
 
-  await query(`
+  await sql`
     CREATE TABLE IF NOT EXISTS research_digests (
       id SERIAL PRIMARY KEY,
       digest_type TEXT NOT NULL DEFAULT 'daily',
       content JSONB NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
-  `);
+  `;
 
-  await query(`
+  await sql`
     CREATE TABLE IF NOT EXISTS content_briefs (
       id SERIAL PRIMARY KEY,
       status TEXT NOT NULL DEFAULT 'pending',
@@ -49,5 +49,5 @@ export async function ensureTables() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       reviewed_at TIMESTAMPTZ
     )
-  `);
+  `;
 }
