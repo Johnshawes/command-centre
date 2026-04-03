@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse, after } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { query, ensureTables } from "@/lib/db";
 import { generateContentBrief } from "@/lib/content-generator";
 
@@ -38,34 +38,34 @@ export async function POST(req: NextRequest) {
     "UPDATE ideas SET status = 'researched', researched_at = NOW() WHERE status = 'pending'"
   );
 
-  // Generate brief AFTER response is sent (runs in background on Vercel)
-  after(async () => {
-    try {
-      const brief = await generateContentBrief(digestContent);
+  // Generate brief synchronously — after() is unreliable on Vercel Hobby tier
+  let briefGenerated = false;
+  try {
+    const brief = await generateContentBrief(digestContent);
 
-      await query(
-        `INSERT INTO content_briefs (
-          hook_1, hook_2, caption, hashtags, why_this_week,
-          source_digest_id, raw_content
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [
-          `${brief.hook_1.line_1} ${brief.hook_1.line_2}`,
-          `${brief.hook_2.line_1} ${brief.hook_2.line_2}`,
-          brief.caption,
-          brief.hashtags,
-          brief.why_this_week,
-          digestId,
-          JSON.stringify(brief),
-        ]
-      );
-    } catch (err) {
-      console.error("Brief generation failed:", err);
-    }
-  });
+    await query(
+      `INSERT INTO content_briefs (
+        hook_1, hook_2, caption, hashtags, why_this_week,
+        source_digest_id, raw_content
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        `${brief.hook_1.line_1} ${brief.hook_1.line_2}`,
+        `${brief.hook_2.line_1} ${brief.hook_2.line_2}`,
+        brief.caption,
+        brief.hashtags,
+        brief.why_this_week,
+        digestId,
+        JSON.stringify(brief),
+      ]
+    );
+    briefGenerated = true;
+  } catch (err) {
+    console.error("Brief generation failed:", err);
+  }
 
   return NextResponse.json({
     status: "stored",
     digest_id: digestId,
-    brief_generation: "auto_triggered",
+    brief_generated: briefGenerated,
   });
 }
