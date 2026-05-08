@@ -21,6 +21,8 @@ interface Conversation {
   follow_up_count: number;
   next_follow_up_at: string | null;
   archived: boolean;
+  is_high_value: boolean | null;
+  high_value_flagged_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -57,6 +59,7 @@ export async function GET() {
     const capacity = parseInt(cfg.monthly_capacity ?? "10", 10);
     const current = parseInt(cfg.current_clients_this_month ?? "0", 10);
     const spotsLeft = Math.max(0, capacity - current);
+    const closedWonTotal = parseInt(cfg.closed_won_total ?? "0", 10);
 
     // ── Lifecycle counts ─────────────────────────────────────────────
     const active = convs.filter((c) => !c.archived);
@@ -124,6 +127,33 @@ export async function GET() {
     // Outlines sent in last 7 days
     const outlinesSent7d = convs.filter((c) => within(c.outline_sent_at, 7 * DAY)).length;
 
+    // ── High-value leads ─────────────────────────────────────────────
+    const highValueAll = convs.filter((c) => c.is_high_value);
+    const highValueActive = highValueAll
+      .filter((c) => !c.archived)
+      .sort((a, b) => {
+        const at = a.high_value_flagged_at ?? a.updated_at;
+        const bt = b.high_value_flagged_at ?? b.updated_at;
+        return new Date(bt).getTime() - new Date(at).getTime();
+      })
+      .slice(0, 10)
+      .map((c) => {
+        const lastUserMsg = (c.message_history ?? [])
+          .slice()
+          .reverse()
+          .find((m) => m.role === "user")?.content ?? "";
+        return {
+          ig_sender_id: c.ig_sender_id,
+          funnel: c.funnel,
+          stage: c.stage,
+          flagged_at: c.high_value_flagged_at,
+          last_user_message: lastUserMsg.slice(0, 200),
+          message_count: c.message_history?.length ?? 0,
+          awaiting_user: c.awaiting_user,
+          updated_at: c.updated_at,
+        };
+      });
+
     // ── Recent activity (last 15) ────────────────────────────────────
     const recent = [...convs]
       .sort(
@@ -145,17 +175,23 @@ export async function GET() {
 
     return NextResponse.json({
       capacity: { capacity, current, spots_left: spotsLeft },
+      sales: {
+        closed_won_total: closedWonTotal,
+      },
       totals: {
         all: convs.length,
         active: active.length,
         archived: archived.length,
         awaiting_them: awaitingThem.length,
         awaiting_us: awaitingUs.length,
+        high_value_all: highValueAll.length,
+        high_value_active: highValueActive.length,
       },
       kpi: {
         outlines_sent_7d: outlinesSent7d,
         follow_ups_due_24h: dueIn24h,
       },
+      high_value_leads: highValueActive,
       funnel_7d: funnel7,
       funnel_30d: funnel30,
       follow_ups: followUpsByStep,

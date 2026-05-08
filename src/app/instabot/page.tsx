@@ -4,14 +4,18 @@ import { useState, useEffect, useCallback } from "react";
 
 interface Stats {
   capacity: { capacity: number; current: number; spots_left: number };
+  sales: { closed_won_total: number };
   totals: {
     all: number;
     active: number;
     archived: number;
     awaiting_them: number;
     awaiting_us: number;
+    high_value_all: number;
+    high_value_active: number;
   };
   kpi: { outlines_sent_7d: number; follow_ups_due_24h: number };
+  high_value_leads: HighValueLead[];
   funnel_7d: FunnelWindow;
   funnel_30d: FunnelWindow;
   follow_ups: {
@@ -23,6 +27,17 @@ interface Stats {
   recent: RecentRow[];
   generated_at: string;
   error?: string;
+}
+
+interface HighValueLead {
+  ig_sender_id: string;
+  funnel: string;
+  stage: string;
+  flagged_at: string | null;
+  last_user_message: string;
+  message_count: number;
+  awaiting_user: boolean;
+  updated_at: string;
 }
 
 interface FunnelWindow {
@@ -125,12 +140,18 @@ export default function InstaBotPage() {
       <Header generated_at={stats.generated_at} />
 
       {/* ── KPI cards ──────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
         <Kpi
           label="Capacity"
           value={`${cap.current}/${cap.capacity}`}
           sub={`${cap.spots_left} spot${cap.spots_left === 1 ? "" : "s"} left`}
           tone={capPct >= 0.9 ? "danger" : capPct >= 0.6 ? "warning" : "default"}
+        />
+        <Kpi
+          label="Closed sales"
+          value={stats.sales.closed_won_total}
+          sub="Whop programme purchases"
+          tone="success"
         />
         <Kpi
           label="Active conversations"
@@ -148,6 +169,28 @@ export default function InstaBotPage() {
           sub={`${stats.totals.awaiting_them} awaiting reply`}
         />
       </div>
+
+      {/* ── High-value leads ───────────────────────────────────────── */}
+      {stats.high_value_leads.length > 0 ? (
+        <div className="bg-gradient-to-br from-warning/15 to-primary/10 border-2 border-warning/40 rounded-xl p-5 mb-6">
+          <div className="flex items-baseline justify-between mb-1">
+            <h3 className="font-bold text-lg flex items-center gap-2">
+              <span>🔥</span> High-value leads
+            </h3>
+            <span className="text-xs text-muted">
+              {stats.totals.high_value_active} active · {stats.totals.high_value_all} total
+            </span>
+          </div>
+          <p className="text-xs text-muted mb-4">
+            Leads who told the bot they do £100K+/month or run 3+ shops. Step in personally.
+          </p>
+          <div className="space-y-2">
+            {stats.high_value_leads.map((l) => (
+              <HighValueItem key={l.ig_sender_id} lead={l} />
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {/* ── Funnel comparison ─────────────────────────────────────── */}
       <div className="bg-surface border border-border rounded-xl p-5 mb-6">
@@ -243,15 +286,63 @@ function Kpi({
   label: string;
   value: string | number;
   sub?: string;
-  tone?: "default" | "warning" | "danger";
+  tone?: "default" | "warning" | "danger" | "success";
 }) {
   const valueColour =
-    tone === "danger" ? "text-danger" : tone === "warning" ? "text-warning" : "text-foreground";
+    tone === "danger"
+      ? "text-danger"
+      : tone === "warning"
+      ? "text-warning"
+      : tone === "success"
+      ? "text-success"
+      : "text-foreground";
   return (
     <div className="bg-surface border border-border rounded-xl p-4">
       <p className="text-xs text-muted uppercase tracking-wide mb-1">{label}</p>
       <p className={`text-2xl font-bold ${valueColour}`}>{value}</p>
       {sub ? <p className="text-xs text-muted mt-1">{sub}</p> : null}
+    </div>
+  );
+}
+
+function HighValueItem({ lead }: { lead: HighValueLead }) {
+  const flaggedAt = lead.flagged_at ? new Date(lead.flagged_at) : null;
+  const flaggedLabel = flaggedAt
+    ? flaggedAt.toLocaleString("en-GB", {
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "—";
+  return (
+    <div className="bg-surface border border-warning/30 rounded-lg p-3">
+      <div className="flex items-center justify-between gap-3 mb-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-[10px] px-2 py-0.5 rounded-full border bg-warning/15 text-warning border-warning/30 font-semibold uppercase tracking-wide">
+            {(FUNNEL_LABELS[lead.funnel] ?? lead.funnel)}
+          </span>
+          <span className="text-[10px] text-muted">{lead.message_count} msgs</span>
+          <span
+            className={`text-[10px] px-2 py-0.5 rounded-full border ${
+              lead.awaiting_user
+                ? "bg-warning/15 text-warning border-warning/30"
+                : "bg-success/15 text-success border-success/30"
+            }`}
+          >
+            {lead.awaiting_user ? "Waiting on them" : "Bot to reply"}
+          </span>
+        </div>
+        <span className="text-xs text-muted whitespace-nowrap">{flaggedLabel}</span>
+      </div>
+      {lead.last_user_message ? (
+        <p className="text-sm text-foreground italic line-clamp-2">
+          “{lead.last_user_message}”
+        </p>
+      ) : null}
+      <p className="text-[10px] text-muted mt-2 font-mono truncate">
+        ig: {lead.ig_sender_id}
+      </p>
     </div>
   );
 }
