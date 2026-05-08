@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { href: "/", label: "Ideas", icon: "💡" },
   { href: "/publish", label: "Publisher", icon: "📱" },
   { href: "/analytics", label: "Analytics", icon: "📊" },
+  { href: "/instabot", label: "Insta Bot", icon: "💬" },
   { href: "/assistant", label: "AI Assistant", icon: "🤖" },
 ];
 
