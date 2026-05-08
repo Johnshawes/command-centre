@@ -140,19 +140,25 @@ export default function InstaBotPage() {
       <Header generated_at={stats.generated_at} />
 
       {/* ── KPI cards ──────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
+      <div
+        className={`grid grid-cols-2 gap-3 mb-8 ${
+          stats.sales.closed_won_total > 0 ? "md:grid-cols-5" : "md:grid-cols-4"
+        }`}
+      >
         <Kpi
           label="Capacity"
           value={`${cap.current}/${cap.capacity}`}
           sub={`${cap.spots_left} spot${cap.spots_left === 1 ? "" : "s"} left`}
           tone={capPct >= 0.9 ? "danger" : capPct >= 0.6 ? "warning" : "default"}
         />
-        <Kpi
-          label="Closed sales"
-          value={stats.sales.closed_won_total}
-          sub="Whop programme purchases"
-          tone="success"
-        />
+        {stats.sales.closed_won_total > 0 ? (
+          <Kpi
+            label="Closed sales"
+            value={stats.sales.closed_won_total}
+            sub="Programme purchases"
+            tone="success"
+          />
+        ) : null}
         <Kpi
           label="Active conversations"
           value={stats.totals.active}
